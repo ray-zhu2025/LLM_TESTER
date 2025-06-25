@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    command: --model /data/modelscope/Qwen/Qwen3-32B --served-model-name Qwen3-32B --tensor-parallel-size 4 --port 8001 --trust-remote-code --max-num-batched-tokens 8192 --gpu-memory-utilization 0.8
+    ports:
+      - "8001:8001"
+    volumes:
+      - /data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 4
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1,2,3
+      - VLLM_SKIP_P2P_CHECK=1
+    ipc: host
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - /data/models:/root/.ollama/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["4", "5", "6", "7"]
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://10.103.80.5:11434
+
+  ollama_pub:
+    image: ollama/ollama:latest
+    container_name: ollama_pub
+    ports:
+      - "11435:11434"
+    volumes:
+      - /data/pub/models:/root/.ollama/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["4", "5", "6", "7"]
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+
+volumes:
+  ollama_data: 
